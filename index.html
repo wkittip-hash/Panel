@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rule Panel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Sans+Thai:wght@400;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #15171c;
+  --panel: #1f2229;
+  --panel-2: #282c35;
+  --line: #3a3f4b;
+  --fg: #e9ebf0;
+  --muted: #9aa1b1;
+  --ok: #4fd18b;
+  --bad: #ff5a5f;
+  --amber: #ffc24a;
+  --display: "Chakra Petch", "IBM Plex Sans Thai", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "IBM Plex Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --c-red: #e84545;
+  --c-blue: #3f7bea;
+  --c-green: #2fb36b;
+  --c-yellow: #f2c230;
+  --c-purple: #9a5ae0;
+  --c-orange: #f0802a;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+}
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+h1 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  text-wrap: balance;
+}
+h1 span { color: var(--amber); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.status {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stat { background: var(--panel); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat .k { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-family: var(--display); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lives { color: var(--bad); letter-spacing: 0.1em; }
+.timebar { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.timebar i { display: block; height: 100%; width: 100%; background: var(--amber); transition: width 0.1s linear; }
+.timebar i.low { background: var(--bad); }
+
+.section-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.rule {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 1.35;
+  min-width: 0;
+  transition: border-color .2s, background .2s;
+}
+.rule .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rule .riddle { font-style: italic; }
+:lang(th) .rule .riddle { font-style: normal; }
+:lang(th) .stat .k, :lang(th) .section-label, :lang(th) .btn { letter-spacing: 0; }
+.top-actions { display: flex; gap: 8px; }
+.card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.rule .plain { font-size: 12.5px; color: var(--muted); }
+.rule .plain.hint { color: color-mix(in srgb, var(--amber) 70%, var(--muted)); }
+.rule.shown { cursor: default; }
+.rule:hover:not(.shown) { border-color: var(--muted); }
+.rule:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+.rule .mark { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); flex: none; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.rule.done { border-color: color-mix(in srgb, var(--ok) 55%, var(--line)); }
+.rule.done .mark { background: var(--ok); border-color: var(--ok); color: #0d1f15; }
+.rule.broken { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, var(--panel)); animation: shake .4s; }
+.rule.broken .mark { background: var(--bad); border-color: var(--bad); color: #fff; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; white-space: nowrap; }
+.chip::before { content: ""; width: 12px; height: 12px; border-radius: 3px; background: var(--sw); box-shadow: inset 0 -2px 0 rgba(0,0,0,.3); }
+
+.deck {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  min-height: 150px;
+  align-content: center;
+  background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+  background-size: 14px 14px;
+}
+.deck.shake { animation: shake .4s; }
+.btn {
+  --c: var(--c-red);
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--c) 70%, #fff) 0 8%, var(--c) 40%, color-mix(in srgb, var(--c) 70%, #000) 100%);
+  box-shadow: 0 7px 0 color-mix(in srgb, var(--c) 45%, #000), 0 10px 14px rgba(0,0,0,.45), inset 0 0 0 4px rgba(0,0,0,.18);
+  color: rgba(255,255,255,.92);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  transition: transform .06s, box-shadow .06s, opacity .25s;
+  position: relative;
+}
+.btn.light { color: rgba(30,20,0,.85); text-shadow: none; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 2px 0 color-mix(in srgb, var(--c) 45%, #000), 0 3px 6px rgba(0,0,0,.4), inset 0 0 0 4px rgba(0,0,0,.18); }
+.btn:focus-visible { outline: 3px solid var(--amber); outline-offset: 6px; }
+.btn:disabled {
+  cursor: default;
+  transform: translateY(6px);
+  opacity: .28;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--c) 45%, #000), inset 0 0 0 4px rgba(0,0,0,.3);
+}
+.btn .ord { position: absolute; top: -8px; right: -8px; background: var(--fg); color: var(--bg); width: 24px; height: 24px; border-radius: 50%; font-size: 12px; display: grid; place-items: center; text-shadow: none; }
+
+.log { display: flex; gap: 6px; flex-wrap: wrap; min-height: 22px; align-items: center; color: var(--muted); font-size: 13px; }
+.log b { width: 18px; height: 18px; border-radius: 4px; background: var(--sw); display: inline-block; }
+.msg { min-height: 22px; font-weight: 700; }
+.msg.bad { color: var(--bad); }
+.msg.ok { color: var(--ok); }
+
+.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.ghost:hover { color: var(--fg); border-color: var(--muted); }
+.ghost:focus-visible, .primary:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+.overlay { position: fixed; inset: 0; background: rgba(10,11,14,.82); display: grid; place-items: center; padding: 16px; z-index: 5; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px; max-width: 440px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.card h2 { font-family: var(--display); font-size: 24px; margin: 0; text-transform: uppercase; letter-spacing: .04em; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.5; color: var(--muted); }
+.card ul { margin: 0; padding-left: 18px; line-height: 1.6; }
+.primary { background: var(--amber); color: #2a1d00; border: 0; border-radius: 10px; padding: 12px 18px; font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #a87a14; }
+.primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #a87a14; }
+.big { font-family: var(--display); font-size: 40px; font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; }
+
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-7px)} 40%{transform:translateX(7px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (max-width: 480px) {
+  .status { grid-template-columns: repeat(2, 1fr); }
+  .btn { width: 72px; height: 72px; font-size: 11px; }
+  .deck { gap: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Rule <span>Panel</span></h1>
+    <div class="top-actions">
+      <button class="ghost" id="langBtn" type="button">ภาษาไทย</button>
+      <button class="ghost" id="howBtn" type="button" data-t="how">How to play</button>
+    </div>
+  </div>
+
+  <div class="status">
+    <div class="stat"><span class="k" data-t="level">Level</span><span class="v" id="sLevel">1</span></div>
+    <div class="stat"><span class="k" data-t="score">Score</span><span class="v" id="sScore">0</span></div>
+    <div class="stat"><span class="k" data-t="lives">Lives</span><span class="v lives" id="sLives">♥♥♥</span></div>
+    <div class="stat"><span class="k" data-t="time">Time</span><span class="v" id="sTime">0.0</span></div>
+  </div>
+  <div class="timebar"><i id="tBar"></i></div>
+
+  <div>
+    <p class="section-label" data-t="riddles">Riddles for this panel</p>
+    <div class="rules" id="rules"></div>
+  </div>
+
+  <div class="deck" id="deck" aria-label="Buttons"></div>
+
+  <div class="log" id="log"><span>Pressed:</span></div>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+const COLORS = {
+  red:    { en: "Red",    th: "แดง",     v: "--c-red" },
+  blue:   { en: "Blue",   th: "น้ำเงิน",  v: "--c-blue" },
+  green:  { en: "Green",  th: "เขียว",    v: "--c-green" },
+  yellow: { en: "Yellow", th: "เหลือง",   v: "--c-yellow", light: true },
+  purple: { en: "Purple", th: "ม่วง",     v: "--c-purple" },
+  orange: { en: "Orange", th: "ส้ม",      v: "--c-orange" },
+};
+let LANG = "en";
+try { if (localStorage.getItem("rulepanel-lang") === "th") LANG = "th"; } catch (e) {}
+const cname = c => COLORS[c][LANG];
+const TEXT = {
+  en: {
+    how: "How to play", level: "Level", score: "Score", lives: "Lives", time: "Time",
+    riddles: "Riddles for this panel", pressed: "Pressed:", nothing: "nothing yet",
+    decode: n => `Tap to decode (−${n} pts)`, means: "Means:",
+    broke: c => `That ${c} broke a riddle. Its meaning is now shown.`,
+    dead: c => `Pressing ${c} now leaves no legal way to finish.`,
+    resets: " Panel resets.", outOfTime: "Out of time.",
+    cleared: n => `Panel cleared! +${n} time bonus.`,
+    lockedTitle: "Panel locked", reached: n => `You reached level ${n}.`,
+    newBest: "That's a new best score.", best: n => `Best score: ${n}.`,
+    again: "Play again", start: "Start", resume: "Resume", button: "button",
+    switchTo: "ภาษาไทย",
+    howBody: () => `
+      <p>Press every button on the panel once. The rules are written as riddles about each color's personality. Work out what order they want.</p>
+      <ul>
+        <li>${chip("blue")} is really ready: Blue goes first.</li>
+        <li>${chip("purple")} is really shy: Purple goes last.</li>
+      </ul>
+      <p>Other riddles say who waits for whom, or who sticks right behind someone. A ×2 tag means the riddle covers every button of that color.</p>
+      <p>Stuck? Tap a riddle to decode it, at a cost in points. A wrong press costs a life, resets the panel and decodes the riddle you broke. Every level adds a button and a riddle.</p>`,
+  },
+  th: {
+    how: "วิธีเล่น", level: "ด่าน", score: "คะแนน", lives: "ชีวิต", time: "เวลา",
+    riddles: "ปริศนาของแผงนี้", pressed: "กดแล้ว:", nothing: "ยังไม่ได้กด",
+    decode: n => `แตะเพื่อถอดรหัส (−${n} คะแนน)`, means: "ความหมาย:",
+    broke: c => `กดสี${c}ผิดกติกา! เปิดความหมายของปริศนาข้อนั้นให้แล้ว`,
+    dead: c => `ถ้ากดสี${c}ตอนนี้ จะไม่มีทางกดที่เหลือให้ถูกได้เลย`,
+    resets: " เริ่มแผงใหม่", outOfTime: "หมดเวลา!",
+    cleared: n => `ผ่านแผงนี้แล้ว! โบนัสเวลา +${n}`,
+    lockedTitle: "แผงถูกล็อก", reached: n => `คุณไปถึงด่าน ${n}`,
+    newBest: "ทำคะแนนสูงสุดใหม่ได้!", best: n => `คะแนนสูงสุด: ${n}`,
+    again: "เล่นอีกครั้ง", start: "เริ่มเกม", resume: "เล่นต่อ", button: "ปุ่ม",
+    switchTo: "English",
+    howBody: () => `
+      <p>กดทุกปุ่มบนแผงให้ครบ ปุ่มละหนึ่งครั้ง กติกาถูกเขียนเป็นปริศนาเกี่ยวกับนิสัยของแต่ละสี ลองเดาดูว่าต้องกดลำดับไหน</p>
+      <ul>
+        <li>${chip("blue")} พร้อมสุด ๆ: กดสีน้ำเงินเป็นอันดับแรก</li>
+        <li>${chip("purple")} ขี้อายมาก: กดสีม่วงเป็นอันดับสุดท้าย</li>
+      </ul>
+      <p>ปริศนาอื่น ๆ จะบอกว่าใครรอใคร หรือใครเดินติดหลังใคร ป้าย ×2 หมายถึงปริศนานั้นใช้กับทุกปุ่มของสีนั้น</p>
+      <p>คิดไม่ออก? แตะที่ปริศนาเพื่อถอดรหัสได้ แต่เสียคะแนน ถ้ากดผิดจะเสียหนึ่งชีวิต แผงจะเริ่มใหม่ และปริศนาข้อที่ผิดจะถูกเปิดความหมาย ทุกด่านจะมีปุ่มและปริศนาเพิ่มขึ้นอย่างละหนึ่ง</p>`,
+  },
+};
+const T = (k, ...a) => { const v = TEXT[LANG][k]; return typeof v === "function" ? v(...a) : v; };
+const ALL = Object.keys(COLORS);
+const $ = id => document.getElementById(id);
+const rnd = n => Math.floor(Math.random() * n);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const chip = c => `<span class="chip" style="--sw:var(${COLORS[c].v})">${cname(c)}</span>`;
+
+let best = 0;
+try { best = +localStorage.getItem("rulepanel-best") || 0; } catch (e) {}
+
+const S = { level: 1, score: 0, lives: 3, buttons: [], rules: [], pressed: [], timeLeft: 0, timeMax: 0, timer: null, playing: false };
+
+function levelSpec(L) {
+  const buttons = Math.min(2 + L, 14);
+  const colors = Math.min(buttons, 6);
+  const extra = buttons - colors;
+  const rules = Math.min(1 + L, 9);
+  return { colors, extra, rules };
+}
+
+const SAY = { en: {
+  first: [
+    a => `${a} is really ready`,
+    a => `${a} can't wait to start`,
+    a => `${a} is an early bird`,
+    a => `${a} wants to lead the way`,
+  ],
+  last: [
+    a => `${a} is really shy`,
+    a => `${a} likes to sleep in`,
+    a => `${a} always shows up late`,
+    a => `${a} wants the final word`,
+  ],
+  before: [
+    (a, b) => `${b} waits for ${a}`,
+    (a, b) => `${a} is older than ${b}`,
+    (a, b) => `${b} follows in ${a}'s footsteps`,
+    (a, b) => `${b} is too scared to go before ${a}`,
+    (a, b) => `${b} lets ${a} go ahead`,
+  ],
+  next: [
+    (a, b) => `${b} holds ${a}'s hand`,
+    (a, b) => `${b} is ${a}'s shadow`,
+    (a, b) => `${b} copies ${a} straight away`,
+    (a, b) => `${b} steps right on ${a}'s heels`,
+  ],
+}, th: {
+  first: [
+    a => `${a} พร้อมสุด ๆ`,
+    a => `${a} รอเริ่มไม่ไหวแล้ว`,
+    a => `${a} เป็นคนตื่นเช้า`,
+    a => `${a} อยากเป็นผู้นำทาง`,
+  ],
+  last: [
+    a => `${a} ขี้อายมาก`,
+    a => `${a} ชอบตื่นสาย`,
+    a => `${a} มาสายทุกที`,
+    a => `${a} ขอพูดเป็นคนสุดท้าย`,
+  ],
+  before: [
+    (a, b) => `${b} รอ ${a}`,
+    (a, b) => `${a} อายุมากกว่า ${b}`,
+    (a, b) => `${b} เดินตามรอย ${a}`,
+    (a, b) => `${b} กลัวเกินกว่าจะไปก่อน ${a}`,
+    (a, b) => `${b} ยอมให้ ${a} ไปก่อน`,
+  ],
+  next: [
+    (a, b) => `${b} จับมือ ${a} ไว้แน่น`,
+    (a, b) => `${b} เป็นเงาของ ${a}`,
+    (a, b) => `${b} เลียนแบบ ${a} ทันที`,
+    (a, b) => `${b} เดินติดหลัง ${a}`,
+  ],
+} };
+
+function counts(seq) { const c = {}; seq.forEach(x => c[x] = (c[x] || 0) + 1); return c; }
+
+function makeLevel(L) {
+  const spec = levelSpec(L);
+  let bestLv = null;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const palette = shuffle(ALL).slice(0, spec.colors);
+    const pool = palette.slice();
+    for (let i = 0; i < spec.extra; i++) pool.push(palette[rnd(palette.length)]);
+    const target = shuffle(pool);
+    const cnt = counts(target);
+    const pos = {};
+    target.forEach((c, i) => (pos[c] = pos[c] || []).push(i));
+    const cands = [];
+    for (const a of palette) for (const b of palette) {
+      if (a !== b && Math.max(...pos[a]) < Math.min(...pos[b])) cands.push({ t: "before", a, b });
+    }
+    for (const a of palette) {
+      if (Math.max(...pos[a]) === cnt[a] - 1) cands.push({ t: "first", a });
+      if (Math.min(...pos[a]) === target.length - cnt[a]) cands.push({ t: "last", a });
+    }
+    if (L >= 3) for (let i = 0; i < target.length - 1; i++) {
+      const a = target[i], b = target[i + 1];
+      if (a !== b && cnt[a] === 1 && cnt[b] === 1) cands.push({ t: "next", a, b });
+    }
+    const picked = [];
+    const sh = shuffle(cands);
+    const weight = r => r.t === "before" ? 0 : 1;
+    sh.sort((x, y) => weight(y) - weight(x) + (Math.random() - .5) * 1.5);
+    for (const r of sh) {
+      if (picked.length >= spec.rules) break;
+      if ((r.t === "first" || r.t === "last") && picked.some(p => p.t === r.t)) continue;
+      if (r.t === "first" && picked.some(p => p.t === "last" && p.a === r.a)) continue;
+      if (r.t === "before" && picked.some(p => p.t === "next" && p.a === r.a && p.b === r.b)) continue;
+      if (r.t === "next" && picked.some(p => p.t === "before" && p.a === r.a && p.b === r.b)) continue;
+      picked.push(r);
+    }
+    if (!picked.length) continue;
+    const ways = countSolutions([], { ...cnt }, picked, 400);
+    if (ways === 0) continue;
+    const total = multinomial(cnt);
+    if (total > 2 && ways > total * 0.5) continue;
+    const used = {};
+    picked.forEach(r => {
+      const opts = shuffle([...SAY.en[r.t].keys()]);
+      used[r.t] = used[r.t] || [];
+      r.v = opts.find(o => !used[r.t].includes(o)) ?? opts[0];
+      used[r.t].push(r.v);
+      r.shown = false;
+    });
+    const lv = { buttons: shuffle(target).map((c, i) => ({ id: i, c })), rules: shuffle(picked) };
+    if (picked.length >= spec.rules) return lv;
+    if (!bestLv || picked.length > bestLv.rules.length) bestLv = lv;
+  }
+  return bestLv;
+}
+function fact(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+function multinomial(cnt) { const v = Object.values(cnt); let r = fact(v.reduce((a, b) => a + b, 0)); v.forEach(x => r /= fact(x)); return r; }
+
+function violates(seq, rem, c, rules) {
+  const last = seq[seq.length - 1];
+  for (const r of rules) {
+    if (r.t === "before" && c === r.b && rem[r.a] > 0) return r;
+    if (r.t === "first" && c !== r.a && rem[r.a] > 0) return r;
+    if (r.t === "last" && c === r.a && Object.keys(rem).some(k => k !== r.a && rem[k] > 0)) return r;
+    if (r.t === "next") {
+      if (c === r.b && last !== r.a) return r;
+      if (last === r.a && c !== r.b && rem[r.b] > 0) return r;
+    }
+  }
+  return null;
+}
+function countSolutions(seq, rem, rules, cap) {
+  const left = Object.keys(rem).filter(k => rem[k] > 0);
+  if (!left.length) return 1;
+  let n = 0;
+  for (const c of left) {
+    if (violates(seq, rem, c, rules)) continue;
+    rem[c]--; seq.push(c);
+    n += countSolutions(seq, rem, rules, cap - n);
+    seq.pop(); rem[c]++;
+    if (n >= cap) break;
+  }
+  return n;
+}
+function remaining() { const r = {}; S.buttons.forEach(b => { if (!b.pressed) r[b.c] = (r[b.c] || 0) + 1; }); ALL.forEach(k => r[k] = r[k] || 0); return r; }
+
+function chipN(c) {
+  const n = S.buttons.filter(b => b.c === c).length;
+  return `<span class="chip" style="--sw:var(${COLORS[c].v})">${cname(c)}${n > 1 ? " ×" + n : ""}</span>`;
+}
+function riddle(r) {
+  const f = SAY[LANG][r.t][r.v];
+  return r.t === "first" || r.t === "last" ? f(chipN(r.a)) : f(chipN(r.a), chipN(r.b));
+}
+const decodeCost = () => 10 * S.level;
+function ruleText(r) {
+  const multi = c => S.buttons.filter(b => b.c === c).length > 1;
+  if (LANG === "th") {
+    const all = c => multi(c) ? " ทุกปุ่ม" : "";
+    if (r.t === "before") return `กด ${chip(r.a)}${all(r.a)} ก่อน ${chip(r.b)}`;
+    if (r.t === "first") return `กด ${chip(r.a)}${all(r.a)} เป็นอันดับแรก`;
+    if (r.t === "last") return `กด ${chip(r.a)}${all(r.a)} เป็นอันดับสุดท้าย`;
+    if (r.t === "next") return `กด ${chip(r.b)} ทันทีหลัง ${chip(r.a)}`;
+  }
+  if (r.t === "before") return `${multi(r.a) ? "All " : ""}${chip(r.a)} before ${multi(r.b) ? "any " : ""}${chip(r.b)}`;
+  if (r.t === "first") return `${chip(r.a)} ${multi(r.a) ? "buttons go" : "goes"} first`;
+  if (r.t === "last") return `${chip(r.a)} ${multi(r.a) ? "buttons go" : "goes"} last`;
+  if (r.t === "next") return `${chip(r.b)} right after ${chip(r.a)}`;
+}
+function ruleDone(r) {
+  const rem = remaining();
+  const total = Object.values(rem).reduce((a, b) => a + b, 0);
+  if (r.t === "before" || r.t === "first") return rem[r.a] === 0;
+  if (r.t === "last") return total === 0;
+  if (r.t === "next") return rem[r.b] === 0;
+}
+
+function renderStatus() {
+  $("sLevel").textContent = S.level;
+  $("sScore").textContent = S.score;
+  $("sLives").textContent = "♥".repeat(S.lives) + "♡".repeat(Math.max(0, 3 - S.lives));
+}
+function renderRules(broken) {
+  $("rules").innerHTML = S.rules.map((r, i) => {
+    const cls = r === broken ? "broken" : ruleDone(r) ? "done" : "";
+    const mark = r === broken ? "✕" : cls === "done" ? "✓" : "";
+    const plain = r.shown
+      ? `<span class="plain">${T("means")} ${ruleText(r)}</span>`
+      : `<span class="plain hint">${T("decode", decodeCost())}</span>`;
+    return `<button type="button" class="rule ${cls} ${r.shown ? "shown" : ""}" data-i="${i}"><span class="txt"><span class="riddle">${riddle(r)}</span>${plain}</span><span class="mark">${mark}</span></button>`;
+  }).join("");
+  $("rules").querySelectorAll(".rule").forEach(el => el.addEventListener("click", () => {
+    const r = S.rules[+el.dataset.i];
+    if (r.shown) return;
+    r.shown = true;
+    S.score = Math.max(0, S.score - decodeCost());
+    renderStatus(); renderRules();
+  }));
+}
+function renderDeck() {
+  $("deck").innerHTML = "";
+  S.buttons.forEach(b => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "btn" + (COLORS[b.c].light ? " light" : "");
+    el.style.setProperty("--c", `var(${COLORS[b.c].v})`);
+    el.textContent = cname(b.c);
+    el.setAttribute("aria-label", cname(b.c) + " " + T("button"));
+    el.disabled = !!b.pressed || !S.playing;
+    if (b.pressed) { const o = document.createElement("span"); o.className = "ord"; o.textContent = b.pressed; el.appendChild(o); }
+    el.addEventListener("click", () => press(b));
+    $("deck").appendChild(el);
+  });
+}
+function renderLog() {
+  $("log").innerHTML = `<span>${T("pressed")}</span>` + (S.pressed.length ? S.pressed.map(c => `<b style="--sw:var(${COLORS[c].v})" title="${cname(c)}"></b>`).join("") : " " + T("nothing"));
+}
+function say(t, cls = "") { $("msg").textContent = t; $("msg").className = "msg " + cls; }
+
+function startLevel(keepRules) {
+  if (!keepRules) {
+    const lv = makeLevel(S.level);
+    S.buttons = lv.buttons; S.rules = lv.rules;
+    S.timeMax = 15 + S.buttons.length * 2.5 + S.rules.length * 3.5;
+  }
+  S.buttons.forEach(b => b.pressed = 0);
+  S.pressed = [];
+  S.timeLeft = S.timeMax;
+  S.playing = true;
+  renderStatus(); renderRules(); renderDeck(); renderLog();
+  clearInterval(S.timer);
+  let lastT = performance.now();
+  S.timer = setInterval(() => {
+    const now = performance.now(); S.timeLeft -= (now - lastT) / 1000; lastT = now;
+    if (S.timeLeft <= 0) { S.timeLeft = 0; tick(); fail(null, T("outOfTime")); return; }
+    tick();
+  }, 100);
+  tick();
+}
+function tick() {
+  $("sTime").textContent = S.timeLeft.toFixed(1);
+  const pct = S.timeMax ? S.timeLeft / S.timeMax * 100 : 0;
+  $("tBar").style.width = pct + "%";
+  $("tBar").classList.toggle("low", pct < 25);
+}
+
+function press(b) {
+  if (!S.playing || b.pressed) return;
+  const rem = remaining();
+  const broken = violates(S.pressed, rem, b.c, S.rules);
+  if (broken) { broken.shown = true; return fail(broken, T("broke", cname(b.c))); }
+  rem[b.c]--;
+  const after = S.pressed.concat(b.c);
+  if (countSolutions(after.slice(), { ...rem }, S.rules, 1) === 0) {
+    return fail(null, T("dead", cname(b.c)));
+  }
+  b.pressed = S.pressed.length + 1;
+  S.pressed.push(b.c);
+  S.score += 10 * S.level;
+  renderStatus(); renderRules(); renderDeck(); renderLog();
+  say("");
+  if (S.buttons.every(x => x.pressed)) win();
+}
+
+function fail(rule, text) {
+  S.playing = false;
+  clearInterval(S.timer);
+  S.lives--;
+  renderStatus(); renderRules(rule); renderDeck();
+  $("deck").classList.remove("shake"); void $("deck").offsetWidth; $("deck").classList.add("shake");
+  say(text + (S.lives > 0 ? T("resets") : ""), "bad");
+  setTimeout(() => {
+    if (S.lives <= 0) return gameOver();
+    startLevel(true);
+  }, 1400);
+}
+
+function win() {
+  S.playing = false;
+  clearInterval(S.timer);
+  const bonus = Math.round(S.timeLeft * 5 * S.level);
+  S.score += 50 * S.level + bonus;
+  renderStatus(); renderDeck();
+  say(T("cleared", bonus), "ok");
+  setTimeout(() => { S.level++; startLevel(false); say(""); }, 1300);
+}
+
+function gameOver() {
+  const newBest = S.score > best;
+  if (newBest) { best = S.score; try { localStorage.setItem("rulepanel-best", best); } catch (e) {} }
+  showCard(() => `
+    <h2>${T("lockedTitle")}</h2>
+    <div class="big">${S.score}</div>
+    <p>${T("reached", S.level)} ${newBest ? T("newBest") : T("best", best)}</p>
+    <button class="primary" id="go">${T("again")}</button>`, newGame);
+}
+
+function newGame() {
+  S.level = 1; S.score = 0; S.lives = 3;
+  say("");
+  startLevel(false);
+}
+
+let cardView = null;
+function showCard(view, onGo) {
+  cardView = { view, onGo };
+  $("card").innerHTML = view();
+  $("overlay").hidden = false;
+  const go = $("go");
+  go.focus();
+  go.addEventListener("click", () => { $("overlay").hidden = true; cardView = null; onGo && onGo(); });
+  const lc = $("langCard");
+  if (lc) lc.addEventListener("click", toggleLang);
+}
+
+const howView = btnKey => () => `
+  <div class="card-top"><h2>${T("how")}</h2><button class="ghost" id="langCard" type="button">${T("switchTo")}</button></div>
+  ${T("howBody")}
+  ${btnKey === "start" ? `<p>${T("best", best)}</p>` : ""}
+  <button class="primary" id="go">${T(btnKey)}</button>`;
+
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = T(el.dataset.t));
+  $("langBtn").textContent = T("switchTo");
+  renderStatus(); renderRules(); renderDeck(); renderLog();
+  say("");
+  if (cardView && !$("overlay").hidden) showCard(cardView.view, cardView.onGo);
+}
+function toggleLang() {
+  LANG = LANG === "en" ? "th" : "en";
+  try { localStorage.setItem("rulepanel-lang", LANG); } catch (e) {}
+  applyLang();
+}
+$("langBtn").addEventListener("click", toggleLang);
+
+$("howBtn").addEventListener("click", () => {
+  const wasPlaying = S.playing;
+  if (wasPlaying) { S.playing = false; clearInterval(S.timer); renderDeck(); }
+  showCard(howView(wasPlaying ? "resume" : "start"), () => {
+    if (wasPlaying) {
+      S.playing = true; renderDeck();
+      let lastT = performance.now();
+      S.timer = setInterval(() => {
+        const now = performance.now(); S.timeLeft -= (now - lastT) / 1000; lastT = now;
+        if (S.timeLeft <= 0) { S.timeLeft = 0; tick(); fail(null, T("outOfTime")); return; }
+        tick();
+      }, 100);
+    } else if (!S.buttons.length || S.lives <= 0) newGame();
+  });
+});
+
+(function init() {
+  const lv = makeLevel(1);
+  S.buttons = lv.buttons; S.rules = lv.rules;
+  S.timeMax = 15 + S.buttons.length * 2.5 + S.rules.length * 3.5; S.timeLeft = S.timeMax;
+  applyLang(); tick();
+  showCard(howView("start"), () => startLevel(true));
+})();
+</script>
+</body>
+</html>
